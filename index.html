@@ -12,15 +12,24 @@
 
     <!-- 1. Cabeçalho -->
     <header>
-        <h1>artbreh</h1>
+        <div class="header-conteudo">
+            <h1>artbreh</h1>
+            <button id="passeio-botao" type="button" aria-controls="galeria-obras"
+                aria-describedby="passeio-ajuda passeio-status" hidden>Iniciar passeio</button>
+        </div>
     </header>
 
     <!-- 2. Seção de Destaque -->
     <main>
+        <div class="passeio-instrucoes" hidden>
+            <p id="passeio-ajuda">Explore no seu ritmo ou inicie um passeio lento. Segure uma obra para pausar; solte para continuar. Ao arrastar a página, retome pelo botão.</p>
+            <p id="passeio-status" role="status" aria-live="polite" aria-atomic="true">Passeio pronto para iniciar.</p>
+        </div>
         <section id="destaque">
             <h2>Obra em Destaque</h2>
             <figure class="obra-destaque">
                 <img src="WhatsApp Image 2026-09-29 at 20.04.16.jpeg"
+                    width="1280" height="1260" draggable="false"
                     alt="Pintura de uma rosa branca sobre fundo preto salpicado de branco">
                 <figcaption>Foto do acervo local, usada como exemplo de destaque.</figcaption>
             </figure>
