@@ -1,59 +1,101 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>artbreh</title>
+    <meta name="description" content="Explore as pinturas da artbreh, conheça os detalhes de cada obra e entre em contato.">
+    <title>artbreh — pinturas para olhar com calma</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2210%22%20fill%3D%22%23F7F5F2%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%2248%22%20text-anchor%3D%22middle%22%20font-family%3D%22Georgia%2Cserif%22%20font-size%3D%2252%22%20fill%3D%22%23765A3C%22%3Ea%3C%2Ftext%3E%3C%2Fsvg%3E">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
 <body>
-
-    <!-- 1. Cabeçalho -->
-    <header>
-        <div class="header-conteudo">
-            <h1>artbreh</h1>
-            <button id="passeio-botao" type="button" aria-controls="galeria-obras"
-                aria-describedby="passeio-ajuda passeio-status" hidden>Iniciar passeio</button>
+    <a class="pular-conteudo" href="#principal">Pular para o conteúdo</a>
+    <header class="cabecalho">
+        <div class="container header-conteudo">
+            <a class="marca" href="#principal" aria-label="artbreh — início">artbreh</a>
+            <nav aria-label="Navegação principal">
+                <a href="#galeria">Obras</a>
+                <a href="#sobre">Sobre</a>
+                <a href="#contato">Contato</a>
+            </nav>
+            <button id="passeio-botao" class="botao botao--secundario" type="button"
+                aria-controls="galeria-obras" aria-describedby="passeio-ajuda passeio-status"
+                hidden>Iniciar passeio</button>
         </div>
     </header>
 
-    <!-- 2. Seção de Destaque -->
-    <main>
+    <main id="principal" class="container" tabindex="-1">
         <div class="passeio-instrucoes" hidden>
-            <p id="passeio-ajuda">Explore no seu ritmo ou inicie um passeio lento. Segure uma obra para pausar; solte para continuar. Ao arrastar a página, retome pelo botão.</p>
-            <p id="passeio-status" role="status" aria-live="polite" aria-atomic="true">Passeio pronto para iniciar.</p>
+            <p id="passeio-ajuda">Passeio opcional: segure uma obra para pausar e solte para continuar. Ao arrastar, retome pelo botão.</p>
+            <p id="passeio-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true">Passeio pronto para iniciar.</p>
         </div>
-        <section id="destaque">
-            <h2>Obra em Destaque</h2>
-            <figure class="obra-destaque">
-                <img src="WhatsApp Image 2026-09-29 at 20.04.16.jpeg"
-                    width="1280" height="1260" draggable="false"
-                    alt="Pintura de uma rosa branca sobre fundo preto salpicado de branco">
-                <figcaption>Foto do acervo local, usada como exemplo de destaque.</figcaption>
-            </figure>
+
+        <section id="abertura" class="abertura" aria-labelledby="abertura-titulo">
+            <div class="abertura-texto">
+                <p class="sobrelinha">Pinturas · artbreh</p>
+                <h1 id="abertura-titulo">Arte para olhar com calma.</h1>
+                <p>Um convite para se aproximar da pintura, observar seus detalhes e descobrir o que cada obra desperta em você.</p>
+                <a class="botao" href="#galeria">Explorar obras <span aria-hidden="true">↗</span></a>
+            </div>
+            <div id="destaque" class="destaque-conteudo" aria-busy="true">
+                <p class="estado-destaque">Preparando a obra em destaque…</p>
+            </div>
         </section>
 
-        <!-- 3. Galeria em Grade -->
-        <section id="galeria">
-            <h2>Galeria de Obras</h2>
-            <p class="nota-exemplos">Galeria de demonstração com fotos locais. Títulos, legendas e disponibilidade são exemplos e não representam informações confirmadas sobre as obras.</p>
-            <p id="galeria-status" role="status">Carregando obras…</p>
-            <div id="galeria-obras" class="galeria-grid"></div>
-            <noscript>Ative o JavaScript para visualizar a galeria de obras.</noscript>
+        <section id="galeria" class="secao" aria-labelledby="galeria-titulo">
+            <div class="secao-cabecalho">
+                <p class="sobrelinha">Um olhar mais perto</p>
+                <h2 id="galeria-titulo">Galeria de obras</h2>
+                <p>Explore as pinturas e seus detalhes. Quando houver mais de uma foto, deslize para os lados ou use as setas.</p>
+                <p class="nota-exemplos">Acervo de demonstração: títulos, descrições e disponibilidade são exemplos.</p>
+            </div>
+            <p id="galeria-status" class="estado-galeria" role="status" aria-live="polite">Carregando obras…</p>
+            <div id="galeria-obras" class="galeria-grid" aria-busy="true"></div>
+            <button id="galeria-tentar-novamente" class="botao botao--secundario" type="button" hidden>Tentar novamente</button>
+            <noscript><p>Ative o JavaScript para visualizar as pinturas, suas informações e os contatos da artista.</p></noscript>
+        </section>
+
+        <section id="sobre" class="secao sobre" aria-labelledby="sobre-titulo">
+            <div>
+                <p class="sobrelinha">Por trás das pinturas</p>
+                <h2 id="sobre-titulo">Sobre a artbreh</h2>
+            </div>
+            <div class="sobre-texto">
+                <p>A artbreh é um espaço para apresentar pinturas e criar encontros entre a arte e quem a observa.</p>
+                <p>A apresentação da artista e mais informações sobre seu processo criativo serão compartilhadas aqui em breve.</p>
+            </div>
+        </section>
+
+        <section id="contato" class="secao contato" aria-labelledby="contato-titulo">
+            <div>
+                <p class="sobrelinha">Vamos conversar</p>
+                <h2 id="contato-titulo" tabindex="-1">Uma obra chamou sua atenção?</h2>
+                <p>Entre em contato para saber mais sobre uma pintura ou conhecer o trabalho da artista.</p>
+            </div>
+            <div class="contato-canais">
+                <p id="contato-status">Os canais de contato serão divulgados em breve.</p>
+                <div id="contato-links" class="contato-links"></div>
+            </div>
         </section>
     </main>
 
-    <!-- 4. Contato -->
-    <footer>
-        <section id="contato">
-            <h2>Contato</h2>
-            <div>
-                <p>Informações de contato e links irão aqui.</p>
-            </div>
-        </section>
+    <footer class="rodape">
+        <div class="container rodape-conteudo">
+            <a class="marca" href="#principal" aria-label="artbreh — voltar ao início">artbreh</a>
+            <p>Pinturas para descobrir, detalhes para sentir.</p>
+            <a class="link-texto" href="#galeria">Voltar às obras</a>
+        </div>
     </footer>
 
+    <dialog id="detalhes-obra" aria-labelledby="detalhes-titulo">
+        <div class="detalhes-cabecalho">
+            <p class="sobrelinha">Um olhar sobre a obra</p>
+            <button id="detalhes-fechar" class="botao botao--secundario" type="button" autofocus>
+                Fechar <span aria-hidden="true">×</span>
+            </button>
+        </div>
+        <div id="detalhes-conteudo" class="detalhes-conteudo"></div>
+    </dialog>
 </body>
 </html>
