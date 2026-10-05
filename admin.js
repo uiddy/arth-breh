@@ -1,6 +1,5 @@
-
 const SUPABASE_URL = "https://pfvopboqnpeijcvawqiy.supabase.co";
-const SUPABASE_CHAVE = "sb_publishable_SMyurOHpLT0dm_SAbgOWpg_Za3rdHsl" 
+const SUPABASE_CHAVE = "sb_publishable_SMyurOHpLT0dm_SAbgOWpg_Za3rdHsl";
 const ARTISTA_UID = "82adfe14-c9bd-403d-abb3-ab95beba4758";
 
 const el = id => document.getElementById(id);
@@ -102,6 +101,49 @@ function editarObra(obra) {
     mensagem(`Editando: ${obra.titulo}`);
 }
 
+async function excluirObra(obra) {
+    if (ocupado) return;
+
+    const confirmou = window.confirm(
+        `Excluir a obra "${obra.titulo}"? Essa ação não pode ser desfeita. A foto continuará no armazenamento.`
+    );
+
+    if (!confirmou) return;
+
+    bloquear(true);
+    mensagem("Excluindo obra…");
+    let excluiu = false;
+
+    try {
+        await verificarAcesso();
+
+        const { error } = await cliente.from("obras")
+            .delete()
+            .eq("id", obra.id)
+            .select("id")
+            .single();
+
+        if (error) throw error;
+
+        excluiu = true;
+
+        if (obraAtual?.id === obra.id) {
+            limparFormulario();
+        }
+
+        await listarObras();
+        mensagem("Obra excluída! Atualize a galeria para ver a mudança.");
+    } catch (erro) {
+        if (excluiu) {
+            mensagem("A obra foi excluída, mas a lista não atualizou. Recarregue o painel.");
+        } else {
+            mostrarErro(erro);
+        }
+    } finally {
+        bloquear(false);
+    }
+}
+
 async function listarObras() {
     const { data, error } = await cliente.from("obras")
         .select(
@@ -133,10 +175,12 @@ async function listarObras() {
         imagem.loading = "lazy";
 
         const detalhes = document.createElement("div");
+
         const titulo = document.createElement("h3");
         titulo.textContent = obra.titulo;
 
         const informacao = document.createElement("p");
+
         const preco = obra.preco === null
             ? "Preço sob consulta"
             : new Intl.NumberFormat("pt-BR", {
@@ -152,7 +196,17 @@ async function listarObras() {
         editar.textContent = "Editar obra";
         editar.addEventListener("click", () => editarObra(obra));
 
-        detalhes.append(titulo, informacao, editar);
+        const excluir = document.createElement("button");
+        excluir.type = "button";
+        excluir.textContent = "Excluir obra";
+        excluir.setAttribute("aria-label", `Excluir obra: ${obra.titulo}`);
+        excluir.addEventListener("click", () => excluirObra(obra));
+
+        const acoes = document.createElement("div");
+        acoes.className = "obra-acoes";
+        acoes.append(editar, excluir);
+
+        detalhes.append(titulo, informacao, acoes);
         card.append(imagem, detalhes);
         lista.append(card);
     });
@@ -180,9 +234,7 @@ el("login-form").addEventListener("submit", async evento => {
             password: el("senha").value
         });
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
         el("senha").value = "";
         await abrirPainel();
@@ -200,6 +252,7 @@ el("sair").addEventListener("click", async () => {
     try {
         const { error } = await cliente.auth.signOut();
         if (error) throw error;
+
         mostrarLogin();
         mensagem("Você saiu do painel.");
     } catch (erro) {
@@ -222,6 +275,7 @@ el("cancelar").addEventListener("click", () => {
 
 el("imagem").addEventListener("change", () => {
     const arquivo = el("imagem").files[0];
+
     mostrarPrevia(
         obraAtual ? urlImagem(obraAtual.imagem_path) : ""
     );
@@ -265,6 +319,7 @@ el("obra-form").addEventListener("submit", async evento => {
             };
 
             const extensao = extensoes[arquivo.type];
+
             if (!extensao) {
                 throw new Error("Use uma foto JPG, PNG ou WebP.");
             }
@@ -284,7 +339,9 @@ el("obra-form").addEventListener("submit", async evento => {
             if (error) throw error;
         }
 
-        if (!caminho) throw new Error("Escolha uma foto para a obra.");
+        if (!caminho) {
+            throw new Error("Escolha uma foto para a obra.");
+        }
 
         const dados = {
             titulo,
