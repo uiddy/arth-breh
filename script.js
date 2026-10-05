@@ -1,4 +1,8 @@
-// 1. Configuração e dados locais. Preencha apenas com contatos reais.
+const SUPABASE_URL = "https://pfvopboqnpeijcvawqiy.supabase.co";
+const SUPABASE_CHAVE = "sb_publishable_SMyurOHpLT0dm_SAbgOWpg_Za3rdHsl";
+
+let clienteSupabase;// 1. Configuração e dados locais. Preencha apenas com contatos reais.
+
 const configuracaoContato = {
     whatsapp: "", // Número internacional, com DDI e DDD; somente dígitos.
     instagram: "", // URL HTTPS completa do perfil da artista.
@@ -130,11 +134,52 @@ const obrasExemplo = [
 
 // 2. Obtenção e normalização. O visual recebe somente este modelo normalizado.
 async function carregarObras() {
+    if (!window.supabase) {
+        throw new Error("A biblioteca do Supabase não carregou.");
+    }
+
+    if (!clienteSupabase) {
+        clienteSupabase = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_CHAVE
+        );
+    }
+
+    const { data, error } = await clienteSupabase
+        .from("obras")
+        .select(
+            "id, titulo, legenda, imagem_path, tecnica, dimensoes, preco, vendida, created_at"
+        )
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true });
+
+    if (error) throw error;
+
+    return (data ?? []).map(obra => {
+        const caminho = (obra.imagem_path ?? "").trim();
+
+        const fotos = [];
+
+        if (caminho) {
+            const { data: imagem } = clienteSupabase.storage
+                .from("obras")
+                .getPublicUrl(caminho);
+
+            fotos.push({
+                src: imagem.publicUrl,
+                imagem_path: caminho,
+                alt: `Fotografia de ${obra.titulo}`
+            });
+        }
+
+        return {
+            ...obra,
+            fotos
+        };
+    });
+}
     // Integração futura: substituir este retorno pela leitura no Supabase.
     // Retorne a lista ou lance um erro; a interface já trata os dois caminhos.
-    return obrasExemplo;
-}
-
 function texto(valor) {
     return typeof valor === "string" ? valor.trim() : "";
 }
@@ -534,7 +579,7 @@ async function iniciarGaleria() {
         status.hidden = false;
         status.textContent = "Não foi possível carregar as obras. Tente novamente.";
         tentar.hidden = false;
-        console.error("Erro ao carregar a galeria:", erro);
+        console.error("Erro ao carregar a galeria:", JSON.stringify(erro));
     } finally {
         if (carga === carregamentoAtual) {
             galeria.setAttribute("aria-busy", "false");
