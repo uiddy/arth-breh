@@ -149,7 +149,7 @@ form p {
     font-size: 14px;
 }
 
-#imagem-preview {
+.imagem-preview {
     display: block;
     max-width: 100%;
     max-height: 280px;

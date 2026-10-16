@@ -4,9 +4,9 @@ const SUPABASE_CHAVE = "sb_publishable_SMyurOHpLT0dm_SAbgOWpg_Za3rdHsl";
 let clienteSupabase;// 1. Configuração e dados locais. Preencha apenas com contatos reais.
 
 const configuracaoContato = {
-    whatsapp: "", // Número internacional, com DDI e DDD; somente dígitos.
+    whatsapp: "554184083795", // Número internacional, com DDI e DDD; somente dígitos.
     instagram: "", // URL HTTPS completa do perfil da artista.
-    email: "",
+    email: "", // Preencha para ativar o botão de e-mail.
 };
 
 // Dados de demonstração: os títulos e a disponibilidade não são dados reais.
@@ -145,22 +145,36 @@ async function carregarObras() {
         );
     }
 
-    const { data, error } = await clienteSupabase
+    const campos = "id, titulo, legenda, imagem_path, tecnica, dimensoes, preco, vendida, created_at";
+    const consultar = selecao => clienteSupabase
         .from("obras")
-        .select(
-            "id, titulo, legenda, imagem_path, tecnica, dimensoes, preco, vendida, created_at"
-        )
+        .select(selecao)
         .order("created_at", { ascending: false })
         .order("id", { ascending: true });
+
+    let { data, error } = await consultar(`${campos}, imagem_verso_path, imagem_textura_path`);
+
+    // Obras antigas continuam visíveis antes da migração das fotos adicionais.
+    if (error && ["42703", "PGRST204"].includes(error.code)
+        && /imagem_(verso|textura)_path/.test(error.message)) {
+        ({ data, error } = await consultar(campos));
+    }
 
     if (error) throw error;
 
     return (data ?? []).map(obra => {
-        const caminho = (obra.imagem_path ?? "").trim();
-
         const fotos = [];
 
-        if (caminho) {
+        const camposFotos = [
+            { campo: "imagem_path", descricao: "Frente" },
+            { campo: "imagem_verso_path", descricao: "Verso" },
+            { campo: "imagem_textura_path", descricao: "Textura" }
+        ];
+
+        for (const { campo, descricao } of camposFotos) {
+            const caminho = (obra[campo] ?? "").trim();
+            if (!caminho) continue;
+
             const { data: imagem } = clienteSupabase.storage
                 .from("obras")
                 .getPublicUrl(caminho);
@@ -168,7 +182,7 @@ async function carregarObras() {
             fotos.push({
                 src: imagem.publicUrl,
                 imagem_path: caminho,
-                alt: `Fotografia de ${obra.titulo}`
+                alt: `${descricao} da obra ${obra.titulo}`
             });
         }
 
@@ -299,14 +313,51 @@ function criarAcaoContato(obra) {
 }
 
 function renderizarContatos() {
+    // Remove o botão antigo caso o navegador ainda esteja usando o HTML anterior.
+    document.querySelectorAll("#whatsapp-flutuante, .whatsapp-flutuante")
+        .forEach(botao => botao.remove());
+
     const { whatsapp, instagram, email } = obterContatos();
     const links = document.getElementById("contato-links");
     const canais = [];
-    if (whatsapp) canais.push(linkExterno("WhatsApp ↗", `https://wa.me/${whatsapp}`));
+    if (whatsapp) {
+        const href = `https://wa.me/${whatsapp}`;
+        const botao = linkExterno("", href);
+        botao.className = "botao contato-cta botao--whatsapp";
+        botao.append(elemento("span", "", "Conversar pelo WhatsApp"));
+        botao.prepend(criarIconeWhatsApp());
+        canais.push(botao);
+    }
+    const botaoEmail = email
+        ? linkExterno("", `mailto:${encodeURIComponent(email)}`)
+        : elemento("button");
+    botaoEmail.className = "botao contato-cta botao--email";
+    botaoEmail.append(criarIconeEmail(), elemento("span", "", "Enviar um e-mail"));
+    if (!email) {
+        botaoEmail.type = "button";
+        botaoEmail.disabled = true;
+        botaoEmail.title = "E-mail disponível em breve";
+        botaoEmail.setAttribute("aria-describedby", "email-disponibilidade");
+    }
+    canais.push(botaoEmail);
+    if (!email) {
+        const aviso = elemento("p", "contato-aviso", "E-mail disponível em breve.");
+        aviso.id = "email-disponibilidade";
+        canais.push(aviso);
+    }
     if (instagram) canais.push(linkExterno("Instagram ↗", instagram));
-    if (email) canais.push(linkExterno("E-mail", `mailto:${encodeURIComponent(email)}`));
     links.replaceChildren(...canais);
     document.getElementById("contato-status").hidden = canais.length > 0;
+}
+
+function criarIconeWhatsApp() {
+    return criarIcone("M20.5 11.7a8.5 8.5 0 0 1-12.6 7.5L3 20.5l1.3-4.7A8.5 8.5 0 1 1 20.5 11.7Z M8.5 7.5c-.3-.6-1.3-.5-1.6 0-.4.6-.5 1.4-.2 2.2.8 2.5 2.8 4.5 5.3 5.5.8.3 1.7.5 2.4.2.6-.2 1.3-1 1.3-1.6 0-.3-.3-.4-.6-.6l-1.6-.8c-.3-.1-.5 0-.7.3l-.6.7c-.2.2-.4.2-.7.1-1.4-.6-2.4-1.6-3-2.8-.2-.3-.1-.5.1-.7l.5-.6c.2-.2.2-.4.1-.7Z");
+}
+
+function criarIconeEmail() {
+    const svg = criarIcone("M3 6h18v12H3z M3 6l9 7 9-7");
+    svg.classList.add("icone-email");
+    return svg;
 }
 
 // 4. Fotos e carrossel, compartilhados pela galeria, pelo destaque e pelo dialog.
@@ -518,12 +569,20 @@ function criarInformacoesObra(obra, contexto = "galeria") {
     return info;
 }
 
+function obterObraDestaque(obras) {
+    // A primeira marcada vence; sem marca, usa a primeira da lista original.
+    return obras.find(obra => obra.destaque) || obras[0];
+}
+
 function renderizarObras(obras) {
     const galeria = document.getElementById("galeria-obras");
     const status = document.getElementById("galeria-status");
     obrasPorId = new Map(obras.map(obra => [obra.id, obra]));
+    const destaque = obterObraDestaque(obras);
+    const ordemGaleria = obras.filter(obra => obra !== destaque);
+    if (destaque) ordemGaleria.push(destaque);
     const cartoes = document.createDocumentFragment();
-    for (const obra of obras) {
+    for (const obra of ordemGaleria) {
         const cartao = elemento("article", "obra-card");
         cartao.dataset.obraId = obra.id;
         const figura = document.createElement("figure");
@@ -542,8 +601,7 @@ function renderizarObras(obras) {
 function renderizarDestaque(obras, mensagem = "Novas pinturas serão apresentadas aqui em breve.") {
     const container = document.getElementById("destaque");
     descartarCarrosseis(container);
-    // A lista já está ordenada: a primeira marcada vence; sem marca, usa a primeira.
-    const obra = obras.find(item => item.destaque) || obras[0];
+    const obra = obterObraDestaque(obras);
     if (!obra) {
         container.replaceChildren(elemento("p", "estado-destaque", mensagem));
         return;
@@ -589,7 +647,7 @@ async function iniciarGaleria() {
 }
 
 // 6. Um único dialog e um único conjunto de listeners durante toda a sessão.
-function iniciarDetalhes(passeio) {
+function iniciarDetalhes() {
     const dialog = document.getElementById("detalhes-obra");
     const conteudo = document.getElementById("detalhes-conteudo");
     const fechar = document.getElementById("detalhes-fechar");
@@ -600,7 +658,6 @@ function iniciarDetalhes(passeio) {
     function abrirDetalhes(botao) {
         const obra = obrasPorId.get(botao.dataset.detalhesId);
         if (!obra || dialog.open) return;
-        passeio.pausar("Passeio pausado para ver os detalhes. Use o botão para retomar.");
         origem = botao;
         posicaoAnterior = { x: window.scrollX, y: window.scrollY };
         const carrosselOrigem = botao.closest(".obra-card, .obra-destaque")?.querySelector(".obra-carrossel");
@@ -660,185 +717,18 @@ function iniciarDetalhes(passeio) {
     });
 }
 
-// 7. Passeio opcional: conserva as regras de pausa e respeita movimento reduzido.
-function iniciarPasseio() {
-    const botao = document.getElementById("passeio-botao");
-    const status = document.getElementById("passeio-status");
-    const movimentoReduzido = preferenciaMovimento;
-    const velocidade = 24; // Pixels por segundo, independente da taxa de atualização.
-    const toleranciaArrasto = 10; // Pequenos tremores do dedo ainda contam como segurar.
-    let estado = "pronto";
-    let quadro = null;
-    let ultimoTempo = null;
-    let posicao = window.scrollY;
-    let rolagemEsperada = window.scrollY;
-    let toque = null;
-
-    // Mede também quebras de linha, zoom e mudanças de orientação do aparelho.
+// 7. Mantém o conteúdo abaixo do cabeçalho fixo, inclusive após zoom e rotação.
+function iniciarCabecalho() {
     const header = document.querySelector("header");
     const medirHeader = () => document.documentElement.style.setProperty(
         "--header-altura", `${header.getBoundingClientRect().height}px`
     );
-    botao.hidden = false;
-    document.querySelector(".passeio-instrucoes").hidden = false;
     medirHeader();
     new ResizeObserver(medirHeader).observe(header);
-
-    function atualizarInterface(mensagem) {
-        const ativo = estado === "andando" || estado === "segurando";
-        document.body.classList.toggle("passeio-ativo", ativo);
-        botao.disabled = movimentoReduzido.matches;
-        botao.textContent = movimentoReduzido.matches ? "Passeio desativado"
-            : ativo ? "Pausar passeio"
-            : estado === "pausado" ? "Retomar passeio" : "Iniciar passeio";
-        status.textContent = mensagem;
-    }
-
-    function pararQuadros() {
-        if (quadro !== null) cancelAnimationFrame(quadro);
-        quadro = null;
-        ultimoTempo = null;
-    }
-
-    function pausar(mensagem = "Passeio pausado. Use o botão para retomar.") {
-        pararQuadros();
-        estado = "pausado";
-        toque = null;
-        atualizarInterface(mensagem);
-    }
-
-    function avancar(tempo) {
-        quadro = null;
-        if (estado !== "andando") return;
-        if (movimentoReduzido.matches) {
-            aplicarPreferenciaMovimento();
-            return;
-        }
-        if (Math.abs(window.scrollY - rolagemEsperada) > 2) {
-            pausar();
-            return;
-        }
-        // Um quadro atrasado não deve causar um salto na página.
-        const segundos = ultimoTempo === null ? 0 : Math.min((tempo - ultimoTempo) / 1000, 0.05);
-        ultimoTempo = tempo;
-        const limite = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-        posicao = Math.min(posicao + velocidade * segundos, limite);
-        window.scrollTo({ top: posicao, left: window.scrollX, behavior: "instant" });
-        rolagemEsperada = window.scrollY;
-        if (posicao >= limite) {
-            pausar("Fim do passeio. Você pode explorar a página livremente.");
-            return;
-        }
-        quadro = requestAnimationFrame(avancar);
-    }
-
-    function continuar() {
-        if (movimentoReduzido.matches || document.getElementById("detalhes-obra").open) return;
-        pararQuadros();
-        // Não reaproveita tempo acumulado durante a pausa nem muda o ponto de leitura.
-        posicao = window.scrollY;
-        rolagemEsperada = window.scrollY;
-        estado = "andando";
-        atualizarInterface("Passeio em andamento. Segure uma obra para pausar.");
-        quadro = requestAnimationFrame(avancar);
-    }
-
-    botao.addEventListener("click", () => {
-        if (estado === "andando" || estado === "segurando") pausar();
-        else continuar();
-    });
-
-    window.addEventListener("pointerdown", (evento) => {
-        if (estado !== "andando" && estado !== "segurando") return;
-        if (!evento.isPrimary || toque) {
-            pausar(); // Pinça/múltiplos dedos devolvem o controle à pessoa.
-            return;
-        }
-        if (evento.target.closest("#passeio-botao")) return;
-        const obra = evento.target.closest(".obra-card, .obra-destaque");
-        if (!obra || evento.button !== 0 || evento.target.closest("a, button, input, select, textarea")) {
-            pausar();
-            return;
-        }
-        toque = { id: evento.pointerId, x: evento.clientX, y: evento.clientY };
-        pararQuadros();
-        estado = "segurando";
-        atualizarInterface("Passeio pausado enquanto você segura a obra. Solte para continuar.");
-    }, { passive: true });
-
-    window.addEventListener("pointermove", (evento) => {
-        if (!toque || evento.pointerId !== toque.id) return;
-        if (Math.hypot(evento.clientX - toque.x, evento.clientY - toque.y) > toleranciaArrasto) {
-            pausar();
-        }
-    }, { passive: true });
-
-    window.addEventListener("pointerup", (evento) => {
-        if (!toque || evento.pointerId !== toque.id) return;
-        const arrastou = Math.hypot(evento.clientX - toque.x, evento.clientY - toque.y) > toleranciaArrasto;
-        toque = null;
-        if (arrastou) pausar();
-        else if (estado === "segurando") continuar();
-    }, { passive: true });
-
-    window.addEventListener("pointercancel", () => {
-        if (toque) pausar(); // O navegador assumiu o gesto nativo de rolagem/zoom.
-    }, { passive: true });
-
-    window.addEventListener("contextmenu", (evento) => {
-        if (estado === "segurando" && evento.target.closest(".obra-card, .obra-destaque")) {
-            evento.preventDefault();
-        }
-    });
-
-    function pausarSeAtivo(mensagem) {
-        if (estado === "andando" || estado === "segurando") {
-            pausar(typeof mensagem === "string" ? mensagem : undefined);
-        }
-    }
-    window.addEventListener("click", (evento) => {
-        if (evento.target.closest("a, button:not(#passeio-botao)")) pausarSeAtivo();
-    });
-
-    window.addEventListener("wheel", pausarSeAtivo, { passive: true });
-    window.addEventListener("keydown", (evento) => {
-        if (["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "PageDown", "PageUp", "Home", "End", " ", "Escape", "Tab"].includes(evento.key)) {
-            // Espaço no botão deve manter sua ativação nativa, sem pausar e reiniciar.
-            if (evento.key === " " && evento.target === botao) return;
-            pausarSeAtivo();
-        }
-    });
-    window.addEventListener("scroll", () => {
-        // Reconhece também rolagem por barra, acessibilidade ou outro mecanismo nativo.
-        if (Math.abs(window.scrollY - rolagemEsperada) > 2) pausarSeAtivo();
-    }, { passive: true });
-    document.addEventListener("visibilitychange", () => {
-        if (document.hidden) pausarSeAtivo();
-    });
-    window.addEventListener("blur", pausarSeAtivo);
-    window.addEventListener("pagehide", pausarSeAtivo);
-    let larguraJanela = window.innerWidth;
-    window.addEventListener("resize", () => {
-        // A barra de endereço móvel pode alterar só a altura durante o passeio.
-        if (window.innerWidth !== larguraJanela) pausarSeAtivo();
-        larguraJanela = window.innerWidth;
-    }, { passive: true });
-
-    function aplicarPreferenciaMovimento() {
-        pausar(movimentoReduzido.matches
-            ? "Movimento reduzido ativado no dispositivo. Explore a galeria com rolagem manual."
-            : "Passeio pronto. Use o botão para iniciar.");
-        estado = "pronto";
-        atualizarInterface(status.textContent);
-    }
-    movimentoReduzido.addEventListener("change", aplicarPreferenciaMovimento);
-    aplicarPreferenciaMovimento();
-    return { pausar: pausarSeAtivo };
 }
 
-
-const passeio = iniciarPasseio();
-iniciarDetalhes(passeio);
+iniciarCabecalho();
+iniciarDetalhes();
 renderizarContatos();
 document.getElementById("galeria-tentar-novamente").addEventListener("click", iniciarGaleria);
 iniciarGaleria();

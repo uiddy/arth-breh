@@ -8,6 +8,8 @@
     --cor-papel: #FCFBF9;
     --cor-suave: #655F58;
     --cor-sobre-destaque: #FFFFFF;
+    --cor-whatsapp: #6B8949;
+    --cor-whatsapp-hover: #5B773C;
     --cor-backdrop: rgb(36 33 36 / 65%);
     --espaco-1: 4px;
     --espaco-2: 8px;
@@ -82,7 +84,7 @@ button:disabled { cursor: default; }
 }
 .header-conteudo {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     align-items: center;
     gap: var(--espaco-2) var(--espaco-3);
 }
@@ -133,8 +135,6 @@ button:disabled { cursor: default; }
 .botao--secundario { background: transparent; color: var(--cor-texto); border-color: var(--cor-borda); }
 .botao--secundario:hover { background: var(--cor-superficie); border-color: var(--cor-destaque); }
 .botao:disabled { background: var(--cor-superficie); border-color: var(--cor-borda); color: var(--cor-suave); }
-#passeio-botao { grid-column: 2; grid-row: 1; padding-inline: var(--espaco-3); }
-.passeio-instrucoes { padding-top: var(--espaco-4); font-size: 12px; color: var(--cor-suave); }
 .sobrelinha {
     color: var(--cor-destaque);
     font-size: 11px;
@@ -262,13 +262,65 @@ button:disabled { cursor: default; }
 }
 .obra-contador svg { width: 16px; height: 16px; }
 .obra-card, .obra-destaque { touch-action: pan-x pan-y pinch-zoom; }
-.passeio-ativo .obra-card, .passeio-ativo .obra-destaque { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .sobre, .contato { display: grid; gap: var(--espaco-5); }
 .sobre-texto p + p { margin-top: var(--espaco-4); }
-.contato-links { display: flex; flex-wrap: wrap; gap: var(--espaco-3); }
-.contato-canais { align-self: center; }
+.contato-links { display: flex; flex-direction: column; align-items: stretch; gap: 22px; }
+.contato-canais { align-self: center; min-width: 0; width: 100%; max-width: 480px; }
 .contato-canais p { max-width: 38ch; }
-.rodape { border-top: 1px solid var(--cor-borda); }
+/* Compatibilidade com páginas antigas ainda abertas no navegador. */
+#whatsapp-flutuante,
+.whatsapp-flutuante { display: none !important; }
+.contato-cta {
+    --cta-cor: var(--cor-whatsapp);
+    --cta-topo: #779653;
+    --cta-borda: #97B674;
+    --cta-hover: var(--cor-whatsapp-hover);
+    width: 100%;
+    min-height: 82px;
+    max-width: 100%;
+    gap: 16px;
+    padding: 18px 22px;
+    border: 3px solid var(--cta-borda);
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--cta-topo), var(--cta-cor));
+    color: #FFFCF1;
+    font-size: clamp(19px, 1.9vw, 22px);
+    font-weight: 700;
+    line-height: 1.3;
+    text-shadow: 0 2px 2px rgb(0 0 0 / 16%);
+    box-shadow: 0 9px 12px rgb(32 42 26 / 25%), inset 0 1px 0 rgb(255 255 255 / 12%);
+    transition: filter 160ms ease, box-shadow 160ms ease;
+}
+.contato-cta span { min-width: 0; }
+.contato-cta:hover:not(:disabled) {
+    border-color: var(--cta-borda);
+    background: linear-gradient(135deg, var(--cta-cor), var(--cta-hover));
+    box-shadow: 0 11px 16px rgb(32 42 26 / 28%), inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+.contato-cta:active:not(:disabled) { box-shadow: 0 3px 6px rgb(32 42 26 / 22%); }
+.contato-cta:focus-visible { outline-color: var(--cta-cor); }
+.contato-cta svg { width: 32px; height: 32px; flex-shrink: 0; filter: drop-shadow(0 2px 2px rgb(0 0 0 / 18%)); }
+.botao--email {
+    --cta-cor: #A83D38;
+    --cta-topo: #B44842;
+    --cta-borda: #92342F;
+    --cta-hover: #92342F;
+}
+.botao--email:disabled {
+    background: linear-gradient(135deg, var(--cta-topo), var(--cta-cor));
+    border-color: var(--cta-borda);
+    color: #FFFCF1;
+    cursor: not-allowed;
+}
+.contato-canais .contato-aviso { margin-top: -10px; max-width: none; text-align: center; font-size: 13px; }
+@media (max-width: 400px) {
+    .contato-cta { gap: 12px; padding-inline: 16px; }
+    .contato-cta svg { width: 28px; height: 28px; }
+}
+.rodape {
+    border-top: 1px solid var(--cor-borda);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 .rodape-conteudo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-5); padding-block: var(--espaco-6); }
 .rodape p { color: var(--cor-suave); font-size: 12px; }
 .link-texto { display: inline-flex; align-items: center; min-height: var(--alvo-toque); font-size: 14px; }
@@ -327,9 +379,8 @@ html.detalhes-abertos body { position: fixed; inset-inline: 0; top: var(--pagina
 }
 @media (min-width: 760px) {
     :root { --header-altura: 88px; }
-    .header-conteudo { grid-template-columns: auto 1fr auto; }
+    .header-conteudo { grid-template-columns: auto 1fr; }
     .cabecalho nav { grid-column: 2; grid-row: 1; justify-content: center; }
-    #passeio-botao { grid-column: 3; }
     .marca { font-size: 40px; }
 }
 @media (min-width: 900px) {

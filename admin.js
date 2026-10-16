@@ -3,12 +3,18 @@ const SUPABASE_CHAVE = "sb_publishable_SMyurOHpLT0dm_SAbgOWpg_Za3rdHsl";
 const ARTISTA_UID = "82adfe14-c9bd-403d-abb3-ab95beba4758";
 
 const el = id => document.getElementById(id);
+const CAMPOS_FOTOS = [
+    { id: "imagem", campo: "imagem_path", nome: "frente" },
+    { id: "imagem-verso", campo: "imagem_verso_path", nome: "verso" },
+    { id: "imagem-textura", campo: "imagem_textura_path", nome: "textura" }
+];
 
 let cliente;
 let obras = [];
 let obraAtual = null;
 let ocupado = false;
-let previaLocal = null;
+let fotosExtrasDisponiveis = false;
+const previasLocais = new Map();
 
 function mensagem(texto) {
     el("status").textContent = texto;
@@ -32,13 +38,13 @@ function urlImagem(caminho) {
         .getPublicUrl(caminho).data.publicUrl;
 }
 
-function mostrarPrevia(url) {
-    if (previaLocal) {
-        URL.revokeObjectURL(previaLocal);
-        previaLocal = null;
+function mostrarPrevia(id, url) {
+    if (previasLocais.has(id)) {
+        URL.revokeObjectURL(previasLocais.get(id));
+        previasLocais.delete(id);
     }
 
-    const imagem = el("imagem-preview");
+    const imagem = el(`${id}-preview`);
     imagem.hidden = !url;
 
     if (url) imagem.src = url;
@@ -52,7 +58,7 @@ function limparFormulario() {
     el("salvar").textContent = "Salvar obra";
     el("imagem").required = true;
     el("cancelar").hidden = true;
-    mostrarPrevia("");
+    CAMPOS_FOTOS.forEach(({ id }) => mostrarPrevia(id, ""));
 }
 
 function mostrarLogin() {
@@ -95,7 +101,9 @@ function editarObra(obra) {
     el("cancelar").hidden = false;
     el("form-titulo").textContent = "Editar obra";
     el("salvar").textContent = "Salvar alterações";
-    mostrarPrevia(urlImagem(obra.imagem_path));
+    CAMPOS_FOTOS.forEach(({ id, campo }) => {
+        mostrarPrevia(id, urlImagem(obra[campo]));
+    });
     el("obra-form").scrollIntoView({ behavior: "smooth" });
     el("titulo").focus({ preventScroll: true });
     mensagem(`Editando: ${obra.titulo}`);
@@ -105,7 +113,7 @@ async function excluirObra(obra) {
     if (ocupado) return;
 
     const confirmou = window.confirm(
-        `Excluir a obra "${obra.titulo}"? Essa ação não pode ser desfeita. A foto continuará no armazenamento.`
+        `Excluir a obra "${obra.titulo}"? Essa ação não pode ser desfeita. As fotos continuarão no armazenamento.`
     );
 
     if (!confirmou) return;
@@ -145,12 +153,20 @@ async function excluirObra(obra) {
 }
 
 async function listarObras() {
-    const { data, error } = await cliente.from("obras")
-        .select(
-            "id,titulo,legenda,imagem_path,tecnica,dimensoes,preco,vendida"
-        )
+    const campos = "id,titulo,legenda,imagem_path,tecnica,dimensoes,preco,vendida";
+    const consultar = selecao => cliente.from("obras")
+        .select(selecao)
         .order("created_at", { ascending: false })
         .order("id", { ascending: true });
+
+    let { data, error } = await consultar(`${campos},imagem_verso_path,imagem_textura_path`);
+    fotosExtrasDisponiveis = !error;
+
+    // Mantém as obras acessíveis enquanto a migração das fotos não foi aplicada.
+    if (error && ["42703", "PGRST204"].includes(error.code)
+        && /imagem_(verso|textura)_path/.test(error.message)) {
+        ({ data, error } = await consultar(campos));
+    }
 
     if (error) throw error;
 
@@ -273,18 +289,18 @@ el("cancelar").addEventListener("click", () => {
     mensagem("Edição cancelada.");
 });
 
-el("imagem").addEventListener("change", () => {
-    const arquivo = el("imagem").files[0];
+CAMPOS_FOTOS.forEach(({ id, campo }) => {
+    el(id).addEventListener("change", () => {
+        const arquivo = el(id).files[0];
+        mostrarPrevia(id, urlImagem(obraAtual?.[campo]));
 
-    mostrarPrevia(
-        obraAtual ? urlImagem(obraAtual.imagem_path) : ""
-    );
-
-    if (arquivo) {
-        previaLocal = URL.createObjectURL(arquivo);
-        el("imagem-preview").src = previaLocal;
-        el("imagem-preview").hidden = false;
-    }
+        if (arquivo) {
+            const previa = URL.createObjectURL(arquivo);
+            previasLocais.set(id, previa);
+            el(`${id}-preview`).src = previa;
+            el(`${id}-preview`).hidden = false;
+        }
+    });
 });
 
 el("obra-form").addEventListener("submit", async evento => {
@@ -308,39 +324,57 @@ el("obra-form").addEventListener("submit", async evento => {
             throw new Error("Informe um preço válido.");
         }
 
-        let caminho = obraAtual?.imagem_path || "";
-        const arquivo = el("imagem").files[0];
+        const extensoes = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp"
+        };
+        const fotos = CAMPOS_FOTOS.map(foto => ({
+            ...foto,
+            arquivo: el(foto.id).files[0],
+            caminho: obraAtual?.[foto.campo] || null
+        }));
 
-        if (arquivo) {
-            const extensoes = {
-                "image/jpeg": "jpg",
-                "image/png": "png",
-                "image/webp": "webp"
-            };
+        if (!fotos[0].arquivo && !fotos[0].caminho) {
+            throw new Error("Escolha uma foto da frente da obra.");
+        }
 
+        if (!fotosExtrasDisponiveis && fotos.slice(1).some(foto => foto.arquivo)) {
+            throw new Error("O envio de fotos do verso e da textura ainda precisa ser habilitado no painel. Após a configuração, recarregue a página e tente novamente.");
+        }
+
+        // Valida todas as fotos antes de iniciar qualquer envio.
+        for (const { arquivo, nome } of fotos) {
+            if (!arquivo) continue;
             const extensao = extensoes[arquivo.type];
 
             if (!extensao) {
-                throw new Error("Use uma foto JPG, PNG ou WebP.");
+                throw new Error(`A foto de ${nome} deve estar em JPG, PNG ou WebP.`);
             }
 
             if (arquivo.size > 5 * 1024 * 1024) {
-                throw new Error("A foto deve ter no máximo 5 MB.");
+                throw new Error(`A foto de ${nome} deve ter no máximo 5 MB.`);
             }
+        }
 
-            caminho = `${ARTISTA_UID}/${crypto.randomUUID()}.${extensao}`;
+        const caminhos = {};
+
+        for (const { arquivo, campo, caminho } of fotos) {
+            // Não envia colunas novas ao banco antes da migração.
+            if (campo !== "imagem_path" && !fotosExtrasDisponiveis) continue;
+            caminhos[campo] = caminho;
+            if (!arquivo) continue;
+
+            const novoCaminho = `${ARTISTA_UID}/${crypto.randomUUID()}.${extensoes[arquivo.type]}`;
 
             const { error } = await cliente.storage.from("obras")
-                .upload(caminho, arquivo, {
+                .upload(novoCaminho, arquivo, {
                     contentType: arquivo.type,
                     upsert: false
                 });
 
             if (error) throw error;
-        }
-
-        if (!caminho) {
-            throw new Error("Escolha uma foto para a obra.");
+            caminhos[campo] = novoCaminho;
         }
 
         const dados = {
@@ -350,7 +384,7 @@ el("obra-form").addEventListener("submit", async evento => {
             dimensoes: el("dimensoes").value.trim(),
             preco,
             vendida: el("vendida").checked,
-            imagem_path: caminho
+            ...caminhos
         };
 
         const consulta = obraAtual

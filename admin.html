@@ -50,15 +50,35 @@
                     <label for="legenda">Legenda</label>
                     <textarea id="legenda" rows="4"></textarea>
 
-                    <label for="imagem">Foto da obra</label>
+                    <label for="imagem">1. Foto da obra — frente</label>
                     <input id="imagem" type="file"
                         accept="image/jpeg,image/png,image/webp"
                         aria-describedby="imagem-ajuda">
                     <p id="imagem-ajuda">
-                        Use JPG, PNG ou WebP. Ao editar, deixe vazio
+                        Foto principal da obra. Use JPG, PNG ou WebP, até 5 MB por foto. Ao editar, deixe vazio
                         para manter a foto atual.
                     </p>
-                    <img id="imagem-preview" alt="Prévia da obra" hidden>
+                    <img id="imagem-preview" class="imagem-preview" alt="Prévia da frente da obra" hidden>
+
+                    <label for="imagem-verso">2. Foto do verso do quadro (opcional)</label>
+                    <input id="imagem-verso" type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        aria-describedby="imagem-verso-ajuda">
+                    <p id="imagem-verso-ajuda">
+                        Mostre a parte de trás do quadro. Use JPG, PNG ou WebP, até 5 MB.
+                        Ao editar, deixe vazio para manter a foto atual.
+                    </p>
+                    <img id="imagem-verso-preview" class="imagem-preview" alt="Prévia do verso da obra" hidden>
+
+                    <label for="imagem-textura">3. Foto da textura do quadro (opcional)</label>
+                    <input id="imagem-textura" type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        aria-describedby="imagem-textura-ajuda">
+                    <p id="imagem-textura-ajuda">
+                        Mostre de perto a textura da pintura. Use JPG, PNG ou WebP, até 5 MB.
+                        Ao editar, deixe vazio para manter a foto atual.
+                    </p>
+                    <img id="imagem-textura-preview" class="imagem-preview" alt="Prévia da textura da obra" hidden>
 
                     <label for="tecnica">Técnica</label>
                     <input id="tecnica" type="text"
